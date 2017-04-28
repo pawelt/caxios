@@ -1,0 +1,21 @@
+{
+  "name": "caxios",
+  "version": "1.0.0",
+  "description": "Consistent Axios - general purpose HTTP request library",
+  "main": "index.js",
+  "repository": "https://github.com/pawelt/caxios",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "HTTP",
+    "request",
+    "ajax",
+    "universal"
+  ],
+  "author": "Pawel Turlejski",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.16.1"
+  }
+}
