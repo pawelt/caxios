@@ -6,29 +6,29 @@ It is 100% [Axios](https://github.com/mzabriskie/axios) compatible, with some ex
 
 ## Defaults
 
-`Caxios` uses the following defaults:
+**Caxios** uses the following defaults:
 
-- request timeout = 3 seconds (by default `Axios` uses infinity)
-- `post`, `put` and `patch` methods send `Content: application/json` header (by default `Axios` uses `application/x-www-form-urlencoded`)
-- all utility functions with suffixed with JSON (`getJSON`,  `postJSON`,  `putJSON`,  `delJSON`) send `Accept` header set to `application/json` (by default `Axios` uses `application/json, text/plain, */*` for all requests)
+- request timeout = 3 seconds (by default **Axios** uses infinity)
+- `post`, `put` and `patch` methods send `Content-Type: application/json` header (by default **Axios** sends `Content-Type: application/x-www-form-urlencoded`)
+- all utility functions with with JSON suffix (`getJSON`,  `postJSON`,  `putJSON`,  `delJSON`) send `Accept: application/json` header (by default **Axios** sends `application/json, text/plain, */*` for all requests)
 
-`Caxios` does NOT modify the global `axios` instance.
+**Caxios** does NOT modify the global `axios` instance.
 
 ## Features
 
-While `Axios` is an excellent library, its default behaviour may not be ideal. `Caxios` aims to address this by introducing the following features:
+While **Axios** is an excellent library, its default behaviour may not be ideal. **Caxios** aims to address this by introducing the following features:
 
   - easier and consistent error handling
   - utility functions for making requests that accept only JSON responses
-  - support for HTTP status code 422 - Unprocessable Entity (used for validation errors)
+  - support for HTTP status code `422` - `Unprocessable Entity` (used for validation errors)
   - support for malformed JSON response handling
 
-Rejected request error objects are extended with the following additional methods:
+Rejected request error objects are extended with additional methods:
 
-  - isFormat()     - true if the client expected JSON response, but server returned malformed JSON
-  - isCancel()     - true if the request was cancelled by the client
-  - isNetwork()    - true for any network error (timeout, server unavailable, CORS etc.)
-  - isValidation() - true if response `status` == `422` (`Unprocessable Entity`, used for validation errors)
+  - `isFormat()`     - true if the client expected JSON response, but server returned malformed JSON
+  - `isCancel()`     - true if the request was cancelled by the client
+  - `isNetwork()`    - true for any network error (timeout, server unavailable, CORS etc.)
+  - `isValidation()` - true if response `status` == `422` (used for validation errors)
 
 These error types are mutually exclusive, so only one of those methods returns true for any error.
 
@@ -50,6 +50,7 @@ axios.get('/some/data', { headers: { 'Accept': 'application/json' } })
 ```js
 const { getJSON, makeCancelSource } = require('caxios');
 const cancelSource = makeCancelSource();
+cancelSource.cancel();
 
 getJSON('/some/data',  { cancelSource })
     .catch(err => console.log(err.isCancel())); // true
