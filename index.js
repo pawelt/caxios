@@ -1,10 +1,10 @@
 /**
- * Consistent Axios.
+ * Caxios - consistent Axios.
  *
  * General purpose HTTP request module with consistent responses.
- * Based on the excellent Axios package.
+ * This module does NOT modify the global Axios instance.
  *
- * Resolved response / rejected error objects always have the following fields:
+ * Resolved response objects always have the following fields (Axios compatible):
  *   - status
  *   - statusText
  *   - headers
@@ -12,12 +12,17 @@
  *   - request
  *   - data
  *
- * In addition, rejected error objects have the following fields:
- *   - message
- *   - cancelled  - true if the request was cancelled by the client
- *   - invalid    - true if response status == 422 (Unprocessable Entity)
+ * Rejected request error objects are extended with the following additional methods:
+ *   - isFormat()     - true if the client expected JSON response, but server returned malformed JSON
+ *   - isCancel()     - true if the request was cancelled by the client
+ *   - isNetwork()    - true for any network error (timeout, server unavailable, CORS etc.)
+ *   - isValidation() - true if response status == 422 (Unprocessable Entity, used for validation errors)
+ * These error types are mutually exclusive, so for any error only one of those methods returns true.
  */
 const axios = require('axios');
+
+// make sure we don't modify the global axios instance
+const caxios = axios.create();
 
 
 /**
@@ -25,59 +30,61 @@ const axios = require('axios');
  * Makes sure the resolved result has consistent format.
  *
  * @param response
- * @returns {*}
+ * @returns {object}
  */
 const fulfilledResponseInterceptor = response => {
-    // All xxxJSON() functions set Accept header explicitly, so check if JSON response was expected and received.
-    if (response.config.headers['Accept'] !== 'application/json' || typeof response.data === 'object')
-        return response;
+    const accept = response.config.headers['Accept'];
 
-    // A JSON response is expected, but typeof data != 'object'.
-    // That means axios silently failed JSON.parse(data) call, so capture the parsing error and reject.
+    const theResponseIsFine =
+        // we did not expect JSON, so return whatever came back from the server
+        accept.indexOf('application/json') < 0
+
+        // we expected more than one content type, so it may be something else than valid JSON
+        || accept.indexOf(',') > 0
+
+        // Axios successfully JSON.parsed the response
+        || typeof response.data === 'object';
+
+    if (theResponseIsFine) return response;
+
+    // If we got here, it means Axios failed to JSON.parse(data) the response,
+    // but the client expected a JSON response. Capture the parsing error and reject.
     try {
         JSON.parse(response.data);
         return response;
     } catch (ex) {
-        throw Object.assign(ex, response, {
-            message: 'Malformed JSON: ' + ex.message,
-            status: 415,
-            statusText: 'Unsupported Media Type',
-        });
+        // ex is an instance of SyntaxError
+        ex.response = response;
+        ex.config = response.config;
+        return rejectedResponseInterceptor(ex);
     }
 };
 
 /**
  * Default rejected response interceptor.
- * Makes sure the rejected result has consistent format.
+ * Extends `ex` object with additional methods for special error types.
+ * 
  * @param ex
  */
 const rejectedResponseInterceptor = ex => {
-    // Special case for server validation errors
-    ex.message = ex.response && ex.response.status === 422 ? 'Validation errors' : ex.message;
+    ex.isFormat = ex.isCancel = ex.isNetwork = ex.isValidation = () => false;
 
-    // Lack of response means either 1) request timeout, 2) unavailable server or 3) a cancellation.
-    Object.assign(ex, ex.response || {
-            status: 503,
-            statusText: 'Service Unavailable',
-            config: ex.config || {},
-            headers: {},
-            request: {},
-            data: isCancelled(ex) ? 'Request cancelled' : 'Request timeout or server unavailable',
-        });
-
-    // This is already merged into ex
-    delete ex.response;
-
-    ex.cancelled = isCancelled(ex);
-    ex.invalid = isInvalid(ex);
-
+    if (ex instanceof SyntaxError) {
+        ex.isFormat = () => true;
+    } else if (axios.isCancel(ex)) {
+        ex.isCancel = () => true;
+    } else if (!ex.response) {
+        ex.isNetwork = () => true;
+    } else if (ex.response.status === 422) {
+        ex.isValidation = () => true;
+    }
     throw ex;
 };
 
 
 /**
  * Creates a shallow copy of `baseConfig`.
- * The result config contains  headers['Accept'] = 'application/json'
+ * The result config contains  headers.Accept = 'application/json'
  *
  * @param baseConfig
  * @returns {*}
@@ -89,12 +96,19 @@ const withAcceptJSON = (baseConfig = {}) => {
 
 
 /**
- * Creates a shallow copy of `baseConfig`.
- * If baseConfig contains cancelSource field,
- * the result config object gets `cancelToken` field with  `baseConfig.cancelSource.token`.
+ * Convenience function that creates a shallow copy of `baseConfig`.
+ * If baseConfig contains cancelSource field, the result config object
+ * is extended with `cancelToken` field, set to `baseConfig.cancelSource.token`.
+ * <pre>
+ *  // axios
+ *  axios.get('/some/path', { cancelToken: cancelSource.token })
  *
- * @param baseConfig
- * @returns {*}
+ *  // caxios shortcut
+ *  caxios.get('/some/path', { cancelSource })
+ * </pre>
+ *
+ * @param {object} baseConfig
+ * @returns {object}
  */
 const withCancelToken = baseConfig => {
     const cancelToken = { cancelToken: baseConfig.cancelToken || (baseConfig.cancelSource || {}).token };
@@ -107,7 +121,7 @@ const withCancelToken = baseConfig => {
  * @param url
  * @param config
  */
-const get = (url, config = {}) => axios.get(url, withCancelToken(config));
+const get = (url, config = {}) => caxios.get(url, withCancelToken(config));
 
 
 /**
@@ -116,7 +130,7 @@ const get = (url, config = {}) => axios.get(url, withCancelToken(config));
  * @param data
  * @param config
  */
-const post = (url, data = {}, config = {}) => axios.post(url, data, withCancelToken(config));
+const post = (url, data = {}, config = {}) => caxios.post(url, data, withCancelToken(config));
 
 
 /**
@@ -125,7 +139,7 @@ const post = (url, data = {}, config = {}) => axios.post(url, data, withCancelTo
  * @param data
  * @param config
  */
-const put = (url, data = {}, config = {}) => axios.put(url, data, withCancelToken(config));
+const put = (url, data = {}, config = {}) => caxios.put(url, data, withCancelToken(config));
 
 
 /**
@@ -134,7 +148,7 @@ const put = (url, data = {}, config = {}) => axios.put(url, data, withCancelToke
  * @param data
  * @param config
  */
-const del = (url, data = {}, config = {}) => axios.delete(url, data, withCancelToken(config));
+const del = (url, data = {}, config = {}) => caxios.delete(url, data, withCancelToken(config));
 
 
 /**
@@ -178,30 +192,16 @@ const delJSON = (url, data = {}, config = {}) => del(url, data, withAcceptJSON(c
 const makeCancelSource = () => axios.CancelToken.source();
 
 
-/**
- * Returns true if err was triggered by cancel token.
- * @param {Error} err error thrown by an ajax function
- */
-const isCancelled = err => axios.isCancel(err);
+(function setCaxiosDefaults() {
 
+    // By default, Axios has timeout set to 0
+    caxios.defaults.timeout = 1000 * 3;
 
-/**
- * Returns true if the status == 422, which is used to return server validation errors.
- * @param {HttpError} err
- */
-const isInvalid = err => err.status == 422;
-
-
-(function setGlobalDefaults() {
-
-    // By default, axios has timeout set to 0
-    axios.defaults.timeout = 1000 * 3;
-
-    // By default, axios sends request payload as application/x-www-form-urlencoded
-    ['post', 'put', 'patch'].forEach(m => axios.defaults.headers[m]['Content-Type'] = 'application/json');
+    // By default, Axios sends request payload as application/x-www-form-urlencoded
+    ['post', 'put', 'patch'].forEach(m => caxios.defaults.headers[m]['Content-Type'] = 'application/json');
 
     // Make responses consistent
-    axios.interceptors.response.use(fulfilledResponseInterceptor, rejectedResponseInterceptor);
+    caxios.interceptors.response.use(fulfilledResponseInterceptor, rejectedResponseInterceptor);
 
 })();
 
@@ -221,11 +221,17 @@ module.exports = {
     withAcceptJSON,
 
     makeCancelSource,
-    isCancelled,
-    isInvalid,
 
     fulfilledResponseInterceptor,
     rejectedResponseInterceptor,
 
+    /**
+     * Caxios instance
+     */
+    caxios,
+
+    /**
+     * Unmodified Axios instance
+     */
     axios,
 };
