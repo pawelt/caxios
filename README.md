@@ -2,7 +2,33 @@
 
 General purpose HTTP request library with consistent behaviour.
 
+Works in node.js and in the browser.
+
 It is 100% [Axios](https://github.com/mzabriskie/axios) compatible, with some extra defaults and features.
+
+
+## Installation
+
+`npm install caxios`
+
+and then
+
+```js
+const { getJSON, postJSON } = require('caxios');
+
+// basic data fetching
+getJSON('/api/data').then(res => console.log(res.data));
+
+// posting JSON data (for ex.: a form) and handling server-side validation
+postJSON('/api/data', { some: 'values', in: 'here' })
+    .then(res => console.log(res.data))
+    .catch(err => err.isValidation() 
+        // catch stats code 422 (used for validation errors)
+        ? console.log('Validation errors:', err.response.data)
+        : console.log('Some other error', err)
+    )
+```
+
 
 ## Defaults
 
@@ -13,6 +39,7 @@ It is 100% [Axios](https://github.com/mzabriskie/axios) compatible, with some ex
 - all utility functions with with JSON suffix (`getJSON`,  `postJSON`,  `putJSON`,  `delJSON`) send `Accept: application/json` header (by default **Axios** sends `application/json, text/plain, */*` for all requests)
 
 **Caxios** does NOT modify the global `axios` instance.
+
 
 ## Features
 
@@ -31,6 +58,7 @@ Rejected request error objects are extended with additional methods:
   - `isValidation()` - true if response `status` == `422` (used for validation errors)
 
 These error types are mutually exclusive, so only one of those methods returns true for any error.
+
 
 ## Examples
 

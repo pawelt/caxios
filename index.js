@@ -143,6 +143,15 @@ const put = (url, data = {}, config = {}) => caxios.put(url, data, withCancelTok
 
 
 /**
+ * PATCH
+ * @param url
+ * @param data
+ * @param config
+ */
+const patch = (url, data = {}, config = {}) => caxios.patch(url, data, withCancelToken(config));
+
+
+/**
  * DELETE
  * @param url
  * @param data
@@ -178,6 +187,15 @@ const putJSON = (url, data = {}, config = {}) => put(url, data, withAcceptJSON(c
 
 
 /**
+ * PATCH request with  Accept: 'application/json'  header
+ * @param url
+ * @param data
+ * @param config
+ */
+const putJSON = (url, data = {}, config = {}) => patch(url, data, withAcceptJSON(config));
+
+
+/**
  * DELETE request with  Accept: 'application/json'  header
  * @param url
  * @param data
@@ -210,11 +228,13 @@ module.exports = {
     get,
     post,
     put,
+    patch,
     del,
 
     getJSON,
     postJSON,
     putJSON,
+    patchJSON,
     delJSON,
 
     withCancelToken,
