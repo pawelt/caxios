@@ -192,7 +192,7 @@ const putJSON = (url, data = {}, config = {}) => put(url, data, withAcceptJSON(c
  * @param data
  * @param config
  */
-const putJSON = (url, data = {}, config = {}) => patch(url, data, withAcceptJSON(config));
+const patchJSON = (url, data = {}, config = {}) => patch(url, data, withAcceptJSON(config));
 
 
 /**
