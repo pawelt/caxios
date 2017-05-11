@@ -157,7 +157,7 @@ const patch = (url, data = {}, config = {}) => caxios.patch(url, data, withCance
  * @param data
  * @param config
  */
-const del = (url, data = {}, config = {}) => caxios.delete(url, data, withCancelToken(config));
+const del = (url, config = {}) => caxios.delete(url, withCancelToken(config));
 
 
 /**
@@ -201,7 +201,7 @@ const patchJSON = (url, data = {}, config = {}) => patch(url, data, withAcceptJS
  * @param data
  * @param config
  */
-const delJSON = (url, data = {}, config = {}) => del(url, data, withAcceptJSON(config));
+const delJSON = (url, config = {}) => del(url, withAcceptJSON(config));
 
 
 /**
