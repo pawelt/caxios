@@ -42,6 +42,9 @@ const fulfilledResponseInterceptor = response => {
         // we expected more than one content type, so it may be something else than valid JSON
         || accept.indexOf(',') > 0
 
+        // ignore no-content responses
+        || response.status === 204
+
         // Axios successfully JSON.parsed the response
         || typeof response.data === 'object';
 
